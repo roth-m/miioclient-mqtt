@@ -1,0 +1,1 @@
+lumi_gateway_mi/update.sh
