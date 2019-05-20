@@ -70,6 +70,7 @@ def handle_miio_reply(topic, miio_msgs, state_update):
             client.publish(mqtt_prefix+topic+"/state",result)#publish
             if miio_msg.get("method") and miio_msg.get("method")=="internal.PONG":
                 ts_last_ping=time.time()
+                print("PONG: TS updated")
         else:
             handle_miio_msg(miio_msg)
 
@@ -264,11 +265,13 @@ while True:
         count_idle_messages=count_idle_messages+1
         pass
 
-# Send PING every 10 minutes
-    if count_idle_messages>6000:
+# Send PING  approx every 5 minutes
+    if count_idle_messages>3000:
         count_idle_messages=0
         q.put([ "internal",{"method": "internal.PING"} , True])
-        if (time.time()-ts_last_ping) > 66:
+        # 10 minutes without PONG
+        if (time.time()-ts_last_ping) > 600:
+            print("Publish on "+mqtt_prefix+topic+"/broker/state result: OFFLINE")
             client.publish(mqtt_prefix+"broker/state","OFFLINE")
         
 #disconnect
