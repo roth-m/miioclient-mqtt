@@ -68,6 +68,8 @@ def handle_miio_reply(topic, miio_msgs, state_update):
             result=miio_msg.get("result")[0].upper()
             print("Publish on "+mqtt_prefix+topic+"/state"+" result:"+str(result))
             client.publish(mqtt_prefix+topic+"/state",result)#publish
+            if miio_msg.get("method") and miio_msg.get("method")=="internal.PONG":
+                ts_last_ping=time.time()
         else:
             handle_miio_msg(miio_msg)
 
