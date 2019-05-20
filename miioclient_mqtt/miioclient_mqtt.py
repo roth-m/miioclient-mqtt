@@ -31,6 +31,7 @@ init_alarming_volume=90
 init_alarming_sound=2
 init_arming_time=30
 init_alarm_duration=1200
+ts_last_ping=time.time()
 
 def miio_msg_encode(data):
     global miio_id
@@ -52,10 +53,6 @@ def miio_msg_decode(data):
     print(data.decode())
     if data[-1] == 0:
         data=data[:-1]
-    if(data=="PONG"):
-    	print("Got PONG")
-    	res=[{"method": "internal.PONG"}]
-    	return res
     res=[{""}]
     try:
         fixed_str = data.decode().replace('}{', '},{')
@@ -69,6 +66,7 @@ def handle_miio_reply(topic, miio_msgs, state_update):
         miio_msg=miio_msgs.pop()
         if state_update == True and miio_msg.get("result"):
             result=miio_msg.get("result")[0].upper()
+            print("Publish on "+mqtt_prefix+topic+"/state"+" result:"+str(result))
             client.publish(mqtt_prefix+topic+"/state",result)#publish
         else:
             handle_miio_msg(miio_msg)
@@ -146,7 +144,7 @@ def handle_miio_msg(miio_msg):
 UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 UDPClientSocket.settimeout(0.10)
 # Send a PING first
-q.put([ "internal",{"method": "internal.PING"} , False])
+q.put([ "broker",{"method": "internal.PING"} , True])
 # Is Gateway armed?
 q.put([ "alarm",{"method": "get_arming"} , True])
 # Set time in seconds after which alarm is really armed
@@ -250,7 +248,7 @@ while True:
         UDPClientSocket.settimeout(2)
         try:
             # Wait for response
-            handle_miio_reply(req[0],miio_msg_decode(UDPClientSocket.recvfrom(miio_len_max,2)[0]), req[2])
+            handle_miio_reply(req[0],miio_msg_decode(UDPClientSocket.recvfrom(miio_len_max)[0]), req[2])
         except socket.timeout:
             print("No reply!")
         UDPClientSocket.settimeout(0.10)
@@ -267,7 +265,9 @@ while True:
 # Send PING every 10 minutes
     if count_idle_messages>6000:
         count_idle_messages=0
-        q.put([ "internal",{"method": "internal.PING"} , False])
+        q.put([ "internal",{"method": "internal.PING"} , True])
+        if (time.time()-ts_last_ping) > 66:
+            client.publish(mqtt_prefix+"broker/state","OFFLINE")
         
 #disconnect
 client.disconnect()

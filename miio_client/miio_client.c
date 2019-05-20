@@ -409,8 +409,8 @@ void process_global_message(void) {
 
     if(length>3 && strncmp((char *)buffer,"{\"method\": \"internal.PING\"}",27)==0)
     {
-	char pong[]="{\"method\": \"internal.PONG\"}";
-	sendto(global_server_socket,(char *)&pong,27,0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
+	char pong[]="{\"method\": \"internal.PONG\", \"result\": [\"online\"]}";
+	sendto(global_server_socket,(char *)&pong,50,0, (struct sockaddr *)&addr, sizeof(struct sockaddr));
 	printf("Got PING\n");
     }
     else

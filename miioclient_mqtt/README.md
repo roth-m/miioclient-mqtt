@@ -11,7 +11,7 @@ There is a section "Constants" where you need to put the following details:
 MQTT_USERNAME: username uses to connecto to your MQTT broker
 MQTT_PASSWORD: password for the user
 MQTT_PREFIX: prefix of the mqtt topics, ie: "/home/xiaomigateway/"
-MQTT_BROKER_IP: the IP of your MQTT borker
+MQTT_BROKER_IP: the IP of your MQTT broker
 
 MIIO_GATEWAY_IP: the IP of your Xiaomi gateway
 
