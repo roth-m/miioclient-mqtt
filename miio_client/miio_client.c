@@ -47,16 +47,7 @@
 
 int main(void);
 void accept_local_server(void);
-int calc_key_id(unsigned char *key, unsigned char *iv);
-int decrypt_payload_inplace(const unsigned char *const key, size_t key_size,
-                            const unsigned char *const iv, size_t iv_size,
-                            unsigned char *payload, size_t payload_size);
-int encrypt_payload_inplace(const unsigned char *const key, size_t key_size,
-                            const unsigned char *const iv, size_t iv_size,
-                            unsigned char *payload, size_t payload_size);
 void exit_programm(void);
-uint32_t get_robot_stamp(void);
-bool is_provisioned(void);
 void print_bin_array(unsigned char *var, size_t length);
 void process_global_message(void);
 void process_local_client(size_t client_socket_idx);
@@ -300,7 +291,7 @@ int read_local(int client_socket, cJSON *payload_json) {
 
    if (strncmp(method->valuestring, "local.query_time", 16) == 0) {
 	  char reply[1024];
-	  sprintf(reply, "{\"id\":12345,\"method\":\"local.time\",\"params\":%u}",(unsigned)time(NULL));
+	  sprintf(reply, "{\"id\":12345,\"method\":\"local.time\",\"params\":%llu}",(unsigned long long)time(NULL));
 	  printf("sending reply: %s\n", reply);
 	  if (send(client_socket, reply, strlen(reply), 0) == -1) {
 	    perror("Couldn't send reply");
@@ -373,11 +364,7 @@ int read_token(cJSON *payload_json) {
   return 0;
 }
 
-uint32_t get_robot_stamp(void) { return (uint32_t)time(NULL); }
 
-bool is_provisioned(void) {
-  return (access("/mnt/data/miio/wifi.conf", F_OK) == 0);
-}
 
 void print_bin_array(unsigned char *var, size_t length) {
   for (size_t i = 0; i < length; i++) {

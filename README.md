@@ -7,7 +7,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 The is a set of tools used for taking control of a Xiaomi Aqara Lumi Gateway (mieu01)  
   
 Directories:  
-	- miio_client : source and binary of the client to be run on the gateay  
+	- miio_client : source and binary of the client to be run on the gateway  
 	- miioclient_mqtt : Python3 script to send commands and publish events from/to the gateway (using UDP with modified miio_client)  
 	- firmware-mod : UNTESTED package to be processed by the gateway in order to gain root and launch  miio_client after 10 minutes  
 
