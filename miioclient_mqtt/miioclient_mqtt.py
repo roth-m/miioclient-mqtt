@@ -271,7 +271,7 @@ while True:
         q.put([ "internal",{"method": "internal.PING"} , True])
         # 10 minutes without PONG
         if (time.time()-ts_last_ping) > 600:
-            print("Publish on "+mqtt_prefix+topic+"/broker/state result: OFFLINE")
+            print("Publish on "+mqtt_prefix+"broker/state result: OFFLINE")
             client.publish(mqtt_prefix+"broker/state","OFFLINE")
         
 #disconnect
