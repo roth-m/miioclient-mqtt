@@ -95,10 +95,10 @@ def miio_msg_params(topic,params):
         if type(value) is not dict:
             print("Publish on "+mqtt_prefix+topic+key+"/state"+" value:"+str(value))
             if key=="rgb":
-                # response seem to have lowest bit on
-                value &= ~1
-                init_light_rgb=int(hex(value)[4:],16)
-                init_brightness=int(hex(value)[2:3],16)
+                # response seem to be increased by 1, unless brightness set to 0
+                init_brightness, init_light_rgb = divmod(value-1, 0x1000000)
+                if init_brightness==0:
+                    init_brightness, init_light_rgb = divmod(value, 0x1000000)
             client.publish(mqtt_prefix+topic+key+"/state",str(value).upper())
 # Not needed            miio_msg_redispatch(topic+key+"/",value)
         else:
