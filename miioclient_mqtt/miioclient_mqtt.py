@@ -24,13 +24,14 @@ q = Queue(maxsize=100)
 
 init_sound_volume=50
 init_sound=2
-init_light_rgb="ffffff" # Initial light color
+init_light_rgb=int("ffffff",16) # Initial light color
 init_doorbell_volume=25
 init_doorbell_sound=11
 init_alarming_volume=90
 init_alarming_sound=2
 init_arming_time=30
 init_alarm_duration=1200
+init_brightness=54
 ts_last_ping=time.time()
 
 def miio_msg_encode(data):
@@ -87,15 +88,17 @@ def miio_msg_redispatch(topic, value):
 
 
 def miio_msg_params(topic,params):
-    global init_sound_volume,init_sound,init_light_rgb,init_doorbell_volume,init_doorbell_sound,init_alarming_volume,init_alarming_sound,init_arming_time,init_alarm_duration
+    global init_sound_volume,init_sound,init_light_rgb,init_doorbell_volume,init_doorbell_sound,init_alarming_volume
+    global init_alarming_sound,init_arming_time,init_alarm_duration,init_brightness
     
     for key, value in params.items():
         if type(value) is not dict:
             print("Publish on "+mqtt_prefix+topic+key+"/state"+" value:"+str(value))
             if key=="rgb":
-                #init_light_rgb=hex(value)[2:]
-                init_light_rgb=hex(value)[4:]
-                value=init_light_rgb
+                # response seem to have lowest bit on
+                value &= ~1
+                init_light_rgb=int(hex(value)[4:],16)
+                init_brightness=int(hex(value)[2:3],16)
             client.publish(mqtt_prefix+topic+key+"/state",str(value).upper())
 # Not needed            miio_msg_redispatch(topic+key+"/",value)
         else:
@@ -167,7 +170,8 @@ q.put([ "rgb",{ "method": "set_rgb", "params": [int("54"+init_light_rgb,16)] } ,
 #MQTT callback
 def on_message(client, userdata, message):
     global q
-    global init_sound_volume,init_sound,init_light_rgb,init_doorbell_volume,init_doorbell_sound,init_alarming_volume,init_alarming_sound,init_arming_time,init_alarm_duration
+    global init_sound_volume, init_sound,init_light_rgb, init_doorbell_volume, init_doorbell_sound
+    global init_alarming_volume, init_alarming_sound, init_arming_time, init_alarm_duration, init_brightness
 
     print("received message =",str(message.payload.decode("utf-8"))," on: ",message.topic)
     item=message.topic[len(mqtt_prefix):]
@@ -185,9 +189,13 @@ def on_message(client, userdata, message):
             q.put([ "light",{ "method": "toggle_light", "params": ["on"] } , False ])
         if command.upper() == "OFF":
             q.put([ "light",{ "method": "toggle_light", "params": ["off"] } , False])
+    if item == "brightness":
+        init_brightness=int(command)
+        miio_int=(init_brightness << 24) + init_light_rgb
+        q.put([ "rgb",{ "method": "set_rgb", "params": [miio_int] } , False ])
     if item == "rgb":
-        init_light_rgb=command.lower();
-        miio_int=int("54"+init_light_rgb,16)
+        init_light_rgb=int(command,16);
+        miio_int=(init_brightness << 24) + init_light_rgb
         q.put([ "rgb",{ "method": "set_rgb", "params": [miio_int] } , False ])
     if item == "sound/volume":
         init_sound_volume=int(command)
@@ -199,7 +207,6 @@ def on_message(client, userdata, message):
             q.put([ "sound",{ "method": "set_sound_playing", "params": ["off"] } , False ])
     if item == "sound/sound":
         init_sound=int(command)
-
     if item == "sound/alarming/volume":
         init_alarming_volume=int(command)
         q.put([ "sound/alarming/volume",{"method": "set_alarming_volume", "params": [init_alarming_volume]} , True])
@@ -231,8 +238,10 @@ client.subscribe(mqtt_prefix+"alarm")
 client.subscribe(mqtt_prefix+"alarm/time_to_activate")
 client.subscribe(mqtt_prefix+"alarm/duration")
 client.subscribe(mqtt_prefix+"light")
+client.subscribe(mqtt_prefix+"brightness")
 client.subscribe(mqtt_prefix+"rgb")
 client.subscribe(mqtt_prefix+"sound")
+client.subscribe(mqtt_prefix+"sound/sound")
 client.subscribe(mqtt_prefix+"sound/volume")
 client.subscribe(mqtt_prefix+"sound/alarming/volume")
 client.subscribe(mqtt_prefix+"sound/alarming/sound")
@@ -271,7 +280,7 @@ while True:
         q.put([ "internal",{"method": "internal.PING"} , True])
         # 10 minutes without PONG
         if (time.time()-ts_last_ping) > 600:
-            print("Publish on "+mqtt_prefix+topic+"/broker/state result: OFFLINE")
+            print("Publish on "+mqtt_prefix+"broker/state result: OFFLINE")
             client.publish(mqtt_prefix+"broker/state","OFFLINE")
         
 #disconnect
