@@ -131,24 +131,23 @@ def miio_msg_event(topic,event,params):
         logging.debug("Publish on "+mqtt_prefix+topic+"state"+" value:"+str(value))
         client.publish(mqtt_prefix+topic+"state",str(value))
 
-
-
 def handle_miio_msg(miio_msg):
-    topic=""
-    if "method" in miio_msg:
-        method=miio_msg.get("method")
-        if "sid" in miio_msg:
-            topic=miio_msg.get("sid")+"/"
+    method=miio_msg.get("method", None)
+    topic=miio_msg.get("sid", "internal") + "/"
+    params=miio_msg.get("params", None)
+    if method != None:
         if method == "props" and "model" in miio_msg:
-            if "params" in miio_msg:
-                miio_msg_params(topic,miio_msg.get("params"))
+            if params != None:
+                miio_msg_params(topic, params)
         elif method == "props":
             topic="internal/"
-            if "params" in miio_msg:
-                miio_msg_params(topic,miio_msg.get("params"))
+            if params != None:
+                miio_msg_params(topic, params)
+        elif method == "_otc.log":
+            if params != None:
+                miio_msg_params(topic, params)
         if method.find("event.")!=-1:
-            miio_msg_event(topic,miio_msg.get("method"),miio_msg.get("params"))
-
+            miio_msg_event(topic, method,miio_msg.get("params"))
 
 
 # Create a UDP socket at client side
