@@ -152,7 +152,7 @@ def handle_miio_msg(miio_msg):
 
 # Create a UDP socket at client side
 UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-UDPClientSocket.settimeout(0.10)
+UDPClientSocket.settimeout(1)
 # Send a PING first
 queue.put([ "broker",{"method": "internal.PING"} , True])
 ts_last_ping=time.time()
@@ -266,7 +266,7 @@ while True:
             handle_miio_reply(req[0],miio_msg_decode(UDPClientSocket.recvfrom(miio_len_max)[0]), req[2])
         except socket.timeout:
             logging.warning("No reply!")
-        UDPClientSocket.settimeout(0.10)
+        UDPClientSocket.settimeout(1)
 #    print("Waiting...")
     try:
         miio_msgs=miio_msg_decode(UDPClientSocket.recvfrom(miio_len_max)[0])
