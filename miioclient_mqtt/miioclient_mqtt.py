@@ -8,6 +8,7 @@ import socket
 import json
 from multiprocessing import Queue
 import paho.mqtt.client as paho
+import logging
 
 # Constants
 mqtt_username="MQTT_USERNAME"
@@ -33,6 +34,7 @@ init_arming_time=30
 init_alarm_duration=1200
 init_brightness=54
 ts_last_ping=time.time()
+logging.basicConfig(level='DEBUG',format='%(asctime)s - %(message)s',)
 
 def miio_msg_encode(data):
     global miio_id
@@ -51,7 +53,7 @@ def miio_msg_encode(data):
 
 
 def miio_msg_decode(data):
-    print(data.decode())
+    logging.debug(data.decode())
     if data[-1] == 0:
         data=data[:-1]
     res=[{""}]
@@ -59,7 +61,7 @@ def miio_msg_decode(data):
         fixed_str = data.decode().replace('}{', '},{')
         res = json.loads("[" + fixed_str + "]")
     except:
-        print("Bad JSON received")
+        logging.warning("Bad JSON received")
     return res
 
 def handle_miio_reply(topic, miio_msgs, state_update):
@@ -67,11 +69,11 @@ def handle_miio_reply(topic, miio_msgs, state_update):
         miio_msg=miio_msgs.pop()
         if state_update == True and miio_msg.get("result"):
             result=miio_msg.get("result")[0].upper()
-            print("Publish on "+mqtt_prefix+topic+"/state"+" result:"+str(result))
+            logging.debug("Publish on "+mqtt_prefix+topic+"/state"+" result:"+str(result))
             client.publish(mqtt_prefix+topic+"/state",result)#publish
             if miio_msg.get("method") and miio_msg.get("method")=="internal.PONG":
                 ts_last_ping=time.time()
-                print("PONG: TS updated")
+                logging.debug("PONG: TS updated")
         else:
             handle_miio_msg(miio_msg)
 
@@ -79,10 +81,10 @@ def handle_miio_reply(topic, miio_msgs, state_update):
 def miio_msg_redispatch(topic, value):
      if topic == "rgb/":
          if int(value)>0:
-             print("Publish on "+mqtt_prefix+"light/state"+" value: ON")
+             logging.debug("Publish on "+mqtt_prefix+"light/state"+" value: ON")
              client.publish(mqtt_prefix+"light/state","ON")
          else:
-             print("Publish on "+mqtt_prefix+"light/state"+" value: OFF")
+             logging.debug("Publish on "+mqtt_prefix+"light/state"+" value: OFF")
              client.publish(mqtt_prefix+"light/state","OFF")
 
 
@@ -93,7 +95,7 @@ def miio_msg_params(topic,params):
     
     for key, value in params.items():
         if type(value) is not dict:
-            print("Publish on "+mqtt_prefix+topic+key+"/state"+" value:"+str(value))
+            logging.debug("Publish on "+mqtt_prefix+topic+key+"/state"+" value:"+str(value))
             if key=="rgb":
                 # response seem to be increased by 1, unless brightness set to 0
                 init_brightness, init_light_rgb = divmod(value-1, 0x1000000)
@@ -123,7 +125,7 @@ def miio_msg_event(topic,event,params):
         value=value.upper()
         if len(params) > 0:
             client.publish(mqtt_prefix+topic+"params",str(params))
-        print("Publish on "+mqtt_prefix+topic+"state"+" value:"+str(value))
+        logging.debug("Publish on "+mqtt_prefix+topic+"state"+" value:"+str(value))
         client.publish(mqtt_prefix+topic+"state",str(value))
 
 
@@ -173,9 +175,9 @@ def on_message(client, userdata, message):
     global init_sound_volume, init_sound,init_light_rgb, init_doorbell_volume, init_doorbell_sound
     global init_alarming_volume, init_alarming_sound, init_arming_time, init_alarm_duration, init_brightness
 
-    print("received message =",str(message.payload.decode("utf-8"))," on: ",message.topic)
+    logging.debug("received message =" + str(message.payload.decode("utf-8")) + " on: " + message.topic)
     item=message.topic[len(mqtt_prefix):]
-    print("Item: "+item)
+    logging.debug("Item: "+item)
     command=str(message.payload.decode("utf-8"))
     if item == "heartbeat":
         queue.put([ "alarm",{"method": "get_arming"} , True])
@@ -227,7 +229,7 @@ client.username_pw_set(mqtt_username, mqtt_password)
 # Assign callback
 client.on_message=on_message
 
-print("connecting to broker ",mqtt_broker)
+logging.debug("connecting to broker " + mqtt_broker)
 client.connect(mqtt_broker)#connect
 #start loop to process received messages
 client.loop_start()
@@ -255,14 +257,14 @@ while True:
 #        print("Something in the queue")
         # req : topic , miio_msg
         req=queue.get();
-        print("Sending: "+str(miio_msg_encode(req[1])))
+        logging.debug("Sending: "+str(miio_msg_encode(req[1])))
         UDPClientSocket.sendto(miio_msg_encode(req[1]), (miio_broker,miio_port))
         UDPClientSocket.settimeout(2)
         try:
             # Wait for response
             handle_miio_reply(req[0],miio_msg_decode(UDPClientSocket.recvfrom(miio_len_max)[0]), req[2])
         except socket.timeout:
-            print("No reply!")
+            logging.warning("No reply!")
         UDPClientSocket.settimeout(0.10)
 #    print("Waiting...")
     try:
@@ -280,7 +282,7 @@ while True:
         queue.put([ "internal",{"method": "internal.PING"} , True])
         # 10 minutes without PONG
         if (time.time()-ts_last_ping) > 600:
-            print("Publish on "+mqtt_prefix+"broker/state result: OFFLINE")
+            logging.debug("Publish on "+mqtt_prefix+"broker/state result: OFFLINE")
             client.publish(mqtt_prefix+"broker/state","OFFLINE")
         
 #disconnect
