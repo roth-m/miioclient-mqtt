@@ -33,7 +33,9 @@ init_alarming_sound=2
 init_arming_time=30
 init_alarm_duration=1200
 init_brightness=54
-ts_last_ping=time.time()
+ts_last_ping=0
+ts_last_pong=0
+
 logging.basicConfig(level='DEBUG',format='%(asctime)s - %(message)s',)
 
 def miio_msg_encode(data):
@@ -65,6 +67,7 @@ def miio_msg_decode(data):
     return res
 
 def handle_miio_reply(topic, miio_msgs, state_update):
+    global ts_last_pong
     while len(miio_msgs)>0:
         miio_msg=miio_msgs.pop()
         if state_update == True and miio_msg.get("result"):
@@ -72,7 +75,7 @@ def handle_miio_reply(topic, miio_msgs, state_update):
             logging.debug("Publish on "+mqtt_prefix+topic+"/state"+" result:"+str(result))
             client.publish(mqtt_prefix+topic+"/state",result)#publish
             if miio_msg.get("method") and miio_msg.get("method")=="internal.PONG":
-                ts_last_ping=time.time()
+                ts_last_pong=time.time()
                 logging.debug("PONG: TS updated")
         else:
             handle_miio_msg(miio_msg)
@@ -153,6 +156,7 @@ UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 UDPClientSocket.settimeout(0.10)
 # Send a PING first
 queue.put([ "broker",{"method": "internal.PING"} , True])
+ts_last_ping=time.time()
 # Is Gateway armed?
 queue.put([ "alarm",{"method": "get_arming"} , True])
 # Set time in seconds after which alarm is really armed
@@ -250,8 +254,6 @@ client.subscribe(mqtt_prefix+"sound/alarming/sound")
 client.subscribe(mqtt_prefix+"sound/doorbell/volume")
 client.subscribe(mqtt_prefix+"sound/doorbell/sound")
 
-count_idle_messages=0
-
 while True:
     while not queue.empty():
 #        print("Something in the queue")
@@ -273,17 +275,14 @@ while True:
             miio_msg=miio_msgs.pop()
             handle_miio_msg(miio_msg)
     except socket.timeout:
-        count_idle_messages=count_idle_messages+1
         pass
 
-# Send PING  approx every 5 minutes
-    if count_idle_messages>3000:
-        count_idle_messages=0
+    if (time.time() - ts_last_ping) > 200:
         queue.put([ "internal",{"method": "internal.PING"} , True])
-        # 10 minutes without PONG
-        if (time.time()-ts_last_ping) > 600:
-            logging.debug("Publish on "+mqtt_prefix+"broker/state result: OFFLINE")
-            client.publish(mqtt_prefix+"broker/state","OFFLINE")
+        ts_last_ping = time.time()
+    if (time.time()-ts_last_pong) > 300:
+        logging.debug("Publish on "+mqtt_prefix+"internal/state result: OFFLINE")
+        client.publish(mqtt_prefix+"internal/state","OFFLINE")
         
 #disconnect
 client.disconnect()
