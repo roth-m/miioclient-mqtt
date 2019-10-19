@@ -98,13 +98,18 @@ def miio_msg_params(topic,params):
     
     for key, value in params.items():
         if type(value) is not dict:
-            logging.debug("Publish on "+mqtt_prefix+topic+key+"/state"+" value:"+str(value))
             if key=="rgb":
                 # response seem to be increased by 1, unless brightness set to 0
                 init_brightness, init_light_rgb = divmod(value-1, 0x1000000)
                 if init_brightness==0:
                     init_brightness, init_light_rgb = divmod(value, 0x1000000)
-            client.publish(mqtt_prefix+topic+key+"/state",str(value).upper())
+                logging.debug("Publish on "+mqtt_prefix+topic+key+"/state"+" value:"+format(init_light_rgb, 'x'))
+                client.publish(mqtt_prefix+topic+key+"/state",format(init_light_rgb,'x').upper())
+                logging.debug("Publish on "+mqtt_prefix+topic+key+"/brightness/state"+" value:"+str(init_brightness))
+                client.publish(mqtt_prefix+topic+key+"/brightness/state",str(init_brightness).upper())
+            else:
+                logging.debug("Publish on "+mqtt_prefix+topic+key+"/state"+" value:"+str(value))
+                client.publish(mqtt_prefix+topic+key+"/state",str(value).upper())
 # Not needed            miio_msg_redispatch(topic+key+"/",value)
         else:
             miio_msg_params(topic+key+"/",value)
