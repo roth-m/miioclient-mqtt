@@ -44,12 +44,12 @@ states = {
         config.get('initial_states', {}).get('doorbell_volume', 25),
     'doorbell_sound':
         config.get('initial_states', {}).get('doorbell_sound', 11),
-    'alarming_volume':
-        config('initial_states', {}).get('alarming_volume', 90),
-    'alarming_sound':
-        config('initial_states', {}).get('alarming_sound', 2),
-    'alarming_time':
-        config('initial_states', {}).get('alarming_time', 30),
+    'alarm_volume':
+        config('initial_states', {}).get('alarm_volume', 90),
+    'alarm_sound':
+        config('initial_states', {}).get('alarm_sound', 2),
+    'arming_time':
+        config('initial_states', {}).get('arming_time', 30),
     'alarm_duration':
         config('initial_states', {}).get('alarm_duration', 1200),
     'brightness':
@@ -215,54 +215,55 @@ queue.put(["alarm", {"method": "get_arming"}, True])
 # Set time in seconds after which alarm is really armed
 queue.put([
     "alarm/time_to_activate",
-    {"method": "set_arming_time", "params": [states['alarming_time']]},
+    {"method": "set_arming_time", "params": [states['arming_time']]},
     True
 ])
-# Set duration of alarm if triggered
-queue.put([
-    "alarm/duration",
-    {
-        "method": "set_device_prop",
-        "params": {
-            "sid": "lumi.0",
-            "alarm_time_len": states['alarm_duration']
-        }
-    },
-    True
-])
-queue.put([
-    "sound/alarming/volume",
-    {"method": "set_alarming_volume", "params": [states['alarming_volume']]},
-    True
-])
-queue.put([
-    "sound/alarming/sound",
-    {
-        "method": "set_alarming_sound",
-        "params": [0, str(states['alarming_sound'])]
-    },
-    True
-])
-queue.put([
-    "sound/doorbell/volume",
-    {"method": "set_doorbell_volume", "params": [states['doorbell_volume']]},
-    True
-])
-queue.put([
-    "sound/doorbell/sound",
-    {
-        "method": "set_doorbell_sound",
-        "params": [1, str(states['doorbell_sound'])]
-    },
-    True
-])
-# states[sound_volume, alarming_time, alarm_duration] is missing
-# Turn OFF sound as previous commands will make the gateway play tones
-queue.put([
-    "sound",
-    {"method": "set_sound_playing", "params": ["off"]},
-    False
-])
+if (!config['silent_start']):
+    # Set duration of alarm if triggered
+    queue.put([
+        "alarm/duration",
+        {
+            "method": "set_device_prop",
+            "params": {
+                "sid": "lumi.0",
+                "alarm_time_len": states['alarm_duration']
+            }
+        },
+        True
+    ])
+    queue.put([
+        "sound/alarming/volume",
+        {"method": "set_alarming_volume", "params": [states['alarm_volume']]},
+        True
+    ])
+    queue.put([
+        "sound/alarming/sound",
+        {
+            "method": "set_alarming_sound",
+            "params": [0, str(states['alarm_sound'])]
+        },
+        True
+    ])
+    queue.put([
+        "sound/doorbell/volume",
+        {"method": "set_doorbell_volume", "params": [states['doorbell_volume']]},
+        True
+    ])
+    queue.put([
+        "sound/doorbell/sound",
+        {
+            "method": "set_doorbell_sound",
+            "params": [1, str(states['doorbell_sound'])]
+        },
+        True
+    ])
+    # states[sound_volume, arming_time, alarm_duration] is missing
+    # Turn OFF sound as previous commands will make the gateway play tones
+    queue.put([
+        "sound",
+        {"method": "set_sound_playing", "params": ["off"]},
+        False
+    ])
 # Set intensity + color
 queue.put([
     "rgb",
@@ -347,22 +348,22 @@ def on_message(client, userdata, message):
     if item == "sound/sound":
         states['sound'] = int(command)
     if item == "sound/alarming/volume":
-        states['alarming_volume'] = int(command)
+        states['alarm_volume'] = int(command)
         queue.put([
             "sound/alarming/volume",
             {
                 "method": "set_alarming_volume",
-                "params": [states['alarming_volume']]
+                "params": [states['alarm_volume']]
             },
             True
         ])
     if item == "sound/alarming/sound":
-        states['alarming_sound'] = int(command)
+        states['alarm_sound'] = int(command)
         queue.put([
             "sound/alarming/sound",
             {
                 "method": "set_alarming_sound",
-                "params": [0, str(states['alarming_sound'])]
+                "params": [0, str(states['alarm_sound'])]
             },
             True
         ])
@@ -372,7 +373,7 @@ def on_message(client, userdata, message):
             "sound/doorbell/volume",
             {
                 "method": "set_doorbell_volume",
-                "params": [states['alarming_volume']]
+                "params": [states['alarm_volume']]
             },
             True
         ])
@@ -382,7 +383,7 @@ def on_message(client, userdata, message):
             "sound/doorbell/sound",
             {
                 "method": "set_doorbell_sound",
-                "params": [0, str(states['alarming_sound'])]
+                "params": [0, str(states['alarm_sound'])]
             },
             True
         ])
