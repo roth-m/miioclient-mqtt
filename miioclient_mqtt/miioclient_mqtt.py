@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # (c)2019 RothM - MIIO Client MQTT Dispatcher
 # Licensed under GPL v3
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -7,33 +9,53 @@
 import time
 import socket
 import json
+import os
+import yaml
 from multiprocessing import Queue
 import logging
 import paho.mqtt.client as paho
 
+
+def read_config():
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    print(script_dir)
+    with open(script_dir + "/miioclient_mqtt.yaml") as file:
+        config = yaml.safe_load(file)
+    return config
+
+
+config = read_config()
+
 # Constants
-mqtt_username = "MQTT_USERNAME"
-mqtt_password = "MQTT_PASSWORD"
-mqtt_prefix = "MQTT_PREFIX"        # With a leading /
-mqtt_broker = "MQTT_BROKER_IP"
-miio_broker = "MIIO_GATEWAY_IP"
-miio_port = 54321
+mqtt_prefix = config.get('mqtt', {}).get('prefix')
 miio_len_max = 1480
 miio_id = 0
 
 queue = Queue(maxsize=100)
 
+states = {
+    'sound':
+        config.get('initial_states', {}).get('sound', 2),
+    'sound_volume':
+        config.get('initial_states', {}).get('sound_volume', 50),
+    'light_rgb':
+        config.get('initial_states', {}).get('light_rgb', 'ffffff'),
+    'doorbell_volume':
+        config.get('initial_states', {}).get('doorbell_volume', 25),
+    'doorbell_sound':
+        config.get('initial_states', {}).get('doorbell_sound', 11),
+    'alarming_volume':
+        config('initial_states', {}).get('alarming_volume', 90),
+    'alarming_sound':
+        config('initial_states', {}).get('alarming_sound', 2),
+    'alarming_time':
+        config('initial_states', {}).get('alarming_time', 30),
+    'alarm_duration':
+        config('initial_states', {}).get('alarm_duration', 1200),
+    'brightness':
+        config('initial_states', {}).get('brightness', 54),
+}
 
-init_sound_volume = 50
-init_sound = 2
-init_light_rgb = int("ffffff", 16)  # Initial light color
-init_doorbell_volume = 25
-init_doorbell_sound = 11
-init_alarming_volume = 90
-init_alarming_sound = 2
-init_arming_time = 30
-init_alarm_duration = 1200
-init_brightness = 54
 ts_last_ping = 0
 ts_last_pong = 0
 
@@ -99,34 +121,34 @@ def miio_msg_redispatch(topic, value):
 
 
 def miio_msg_params(topic, params):
-    global init_sound_volume, init_sound, init_light_rgb, init_doorbell_volume
-    global init_doorbell_sound, init_alarming_volume, init_alarming_sound
-    global init_arming_time, init_alarm_duration, init_brightness
+    global states
 
     for key, value in params.items():
         if type(value) is not dict:
             if key == "rgb":
                 # response seem to be increased by 1,
                 # unless brightness set to 0
-                init_brightness, init_light_rgb = divmod(value-1, 0x1000000)
-                if init_brightness == 0:
-                    init_brightness, init_light_rgb = divmod(value, 0x1000000)
+                states['brightness'], states['light_rgb'] = \
+                        divmod(value-1, 0x1000000)
+                if states['brightness'] == 0:
+                    states['brightness'], states['light_rgb'] = \
+                            divmod(value, 0x1000000)
                 logging.debug(
                     "Publish on " + mqtt_prefix + topic + key + "/state" +
-                    " value:" + format(init_light_rgb, 'x')
+                    " value:" + format(states['light_rgb'], 'x')
                 )
                 client.publish(
                     mqtt_prefix + topic + key + "/state",
-                    format(init_light_rgb, 'x').upper()
+                    format(states['light_rgb'], 'x').upper()
                 )
                 logging.debug(
                     "Publish on " + mqtt_prefix + topic + key +
                     "/brightness/state" + " value:" +
-                    str(init_brightness)
+                    str(states['brightness'])
                 )
                 client.publish(
                     mqtt_prefix + topic + key + "/brightness/state",
-                    str(init_brightness).upper()
+                    str(states['brightness']).upper()
                 )
             else:
                 logging.debug("Publish on " + mqtt_prefix + topic + key +
@@ -193,7 +215,7 @@ queue.put(["alarm", {"method": "get_arming"}, True])
 # Set time in seconds after which alarm is really armed
 queue.put([
     "alarm/time_to_activate",
-    {"method": "set_arming_time", "params": [init_arming_time]},
+    {"method": "set_arming_time", "params": [states['alarming_time']]},
     True
 ])
 # Set duration of alarm if triggered
@@ -203,31 +225,38 @@ queue.put([
         "method": "set_device_prop",
         "params": {
             "sid": "lumi.0",
-            "alarm_time_len": init_alarm_duration
+            "alarm_time_len": states['alarm_duration']
         }
     },
     True
 ])
 queue.put([
     "sound/alarming/volume",
-    {"method": "set_alarming_volume", "params": [init_alarming_volume]},
+    {"method": "set_alarming_volume", "params": [states['alarming_volume']]},
     True
 ])
 queue.put([
     "sound/alarming/sound",
-    {"method": "set_alarming_sound", "params": [0, str(init_alarming_sound)]},
+    {
+        "method": "set_alarming_sound",
+        "params": [0, str(states['alarming_sound'])]
+    },
     True
 ])
 queue.put([
     "sound/doorbell/volume",
-    {"method": "set_doorbell_volume", "params": [init_doorbell_volume]},
+    {"method": "set_doorbell_volume", "params": [states['doorbell_volume']]},
     True
 ])
 queue.put([
     "sound/doorbell/sound",
-    {"method": "set_doorbell_sound", "params": [1, str(init_doorbell_sound)]},
+    {
+        "method": "set_doorbell_sound",
+        "params": [1, str(states['doorbell_sound'])]
+    },
     True
 ])
+# states[sound_volume, alarming_time, alarm_duration] is missing
 # Turn OFF sound as previous commands will make the gateway play tones
 queue.put([
     "sound",
@@ -237,17 +266,14 @@ queue.put([
 # Set intensity + color
 queue.put([
     "rgb",
-    {"method": "set_rgb", "params": [int("54" + init_light_rgb, 16)]},
+    {"method": "set_rgb", "params": [int("54" + states['light_rgb'], 16)]},
     False
 ])
 
 
 # MQTT callback
 def on_message(client, userdata, message):
-    global queue
-    global init_sound_volume, init_sound, init_light_rgb, init_doorbell_volume
-    global init_doorbell_sound, init_alarming_volume, init_alarming_sound
-    global init_arming_time, init_alarm_duration, init_brightness
+    global queue, states
 
     logging.debug(
         "received message =" + str(message.payload.decode("utf-8")) + " on: " +
@@ -285,18 +311,21 @@ def on_message(client, userdata, message):
                 False
             ])
     if item == "brightness":
-        init_brightness = int(command)
-        miio_int = (init_brightness << 24) + init_light_rgb
+        states['brightness'] = int(command)
+        miio_int = (states['brightness'] << 24) + states['light_rgb']
         queue.put(["rgb", {"method": "set_rgb", "params": [miio_int]}, False])
     if item == "rgb":
-        init_light_rgb = int(command, 16)
-        miio_int = (init_brightness << 24) + init_light_rgb
+        states['light_rgb'] = int(command, 16)
+        miio_int = (states['brightness'] << 24) + states['light_rgb']
         queue.put(["rgb", {"method": "set_rgb", "params": [miio_int]}, False])
     if item == "sound/volume":
-        init_sound_volume = int(command)
+        states['sound_volume'] = int(command)
         queue.put([
             "sound/volume",
-            {"method": "set_gateway_volume", "params": [init_sound_volume]},
+            {
+                "method": "set_gateway_volume",
+                "params": [states['sound_volume']]
+            },
             True
         ])
     if item == "sound":
@@ -305,7 +334,7 @@ def on_message(client, userdata, message):
                 "sound",
                 {
                     "method": "play_music_new",
-                    "params": [str(init_sound), init_sound_volume]
+                    "params": [str(states['sound']), states['sound_volume']]
                 },
                 False
             ])
@@ -316,44 +345,44 @@ def on_message(client, userdata, message):
                 False
             ])
     if item == "sound/sound":
-        init_sound = int(command)
+        states['sound'] = int(command)
     if item == "sound/alarming/volume":
-        init_alarming_volume = int(command)
+        states['alarming_volume'] = int(command)
         queue.put([
             "sound/alarming/volume",
             {
                 "method": "set_alarming_volume",
-                "params": [init_alarming_volume]
+                "params": [states['alarming_volume']]
             },
             True
         ])
     if item == "sound/alarming/sound":
-        init_alarming_sound = int(command)
+        states['alarming_sound'] = int(command)
         queue.put([
             "sound/alarming/sound",
             {
                 "method": "set_alarming_sound",
-                "params": [0, str(init_alarming_sound)]
+                "params": [0, str(states['alarming_sound'])]
             },
             True
         ])
     if item == "sound/doorbell/volume":
-        init_doorbell_volume = int(command)
+        states['doorbell_volume'] = int(command)
         queue.put([
             "sound/doorbell/volume",
             {
                 "method": "set_doorbell_volume",
-                "params": [init_alarming_volume]
+                "params": [states['alarming_volume']]
             },
             True
         ])
     if item == "sound/doorbell/sound":
-        init_doorbell_sound = int(command)
+        states['doorbell_sound'] = int(command)
         queue.put([
             "sound/doorbell/sound",
             {
                 "method": "set_doorbell_sound",
-                "params": [0, str(init_alarming_sound)]
+                "params": [0, str(states['alarming_sound'])]
             },
             True
         ])
@@ -361,12 +390,15 @@ def on_message(client, userdata, message):
 
 # Setup MQTT client
 client = paho.Client("mqttmiio-001")
-client.username_pw_set(mqtt_username, mqtt_password)
+client.username_pw_set(
+    config.get('mqtt', {}).get('username', ''),
+    config.get('mqtt', {}).get('password', '')
+)
 # Assign callback
 client.on_message = on_message
 
-logging.debug("connecting to broker " + mqtt_broker)
-client.connect(mqtt_broker)    # connect
+logging.debug("connecting to broker " + config['mqtt']['broker'])
+client.connect(config['mqtt']['broker'])    # connect
 # start loop to process received messages
 client.loop_start()
 
@@ -394,7 +426,7 @@ while True:
         logging.debug("Sending: " + str(miio_msg_encode(req[1])))
         UDPClientSocket.sendto(
             miio_msg_encode(req[1]),
-            (miio_broker, miio_port)
+            (config['miio']['broker'], config['miio']['port'])
         )
         UDPClientSocket.settimeout(2)
         try:
