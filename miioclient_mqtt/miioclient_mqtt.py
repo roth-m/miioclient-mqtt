@@ -18,7 +18,6 @@ import paho.mqtt.client as paho
 
 def read_config():
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    print(script_dir)
     with open(script_dir + "/miioclient_mqtt.yaml") as file:
         config = yaml.safe_load(file)
     return config
@@ -39,21 +38,21 @@ states = {
     'sound_volume':
         config.get('initial_states', {}).get('sound_volume', 50),
     'light_rgb':
-        config.get('initial_states', {}).get('light_rgb', 'ffffff'),
+        int(config.get('initial_states', {}).get('light_rgb', 'ffffff'), 16),
     'doorbell_volume':
         config.get('initial_states', {}).get('doorbell_volume', 25),
     'doorbell_sound':
         config.get('initial_states', {}).get('doorbell_sound', 11),
     'alarm_volume':
-        config('initial_states', {}).get('alarm_volume', 90),
+        config.get('initial_states', {}).get('alarm_volume', 90),
     'alarm_sound':
-        config('initial_states', {}).get('alarm_sound', 2),
+        config.get('initial_states', {}).get('alarm_sound', 2),
     'arming_time':
-        config('initial_states', {}).get('arming_time', 30),
+        config.get('initial_states', {}).get('arming_time', 30),
     'alarm_duration':
-        config('initial_states', {}).get('alarm_duration', 1200),
+        config.get('initial_states', {}).get('alarm_duration', 1200),
     'brightness':
-        config('initial_states', {}).get('brightness', 54),
+        config.get('initial_states', {}).get('brightness', 54),
 }
 
 ts_last_ping = 0
@@ -99,7 +98,7 @@ def handle_miio_reply(topic, miio_msgs, state_update):
             result = miio_msg.get("result")[0].upper()
             logging.debug("Publish on " + mqtt_prefix + topic + "/state" +
                           " result:" + str(result))
-            client.publish(mqtt_prefix + topic + "/state", result)    # publish
+            client.publish(mqtt_prefix + topic + "/state", result)   # publish
             if miio_msg.get("method") and \
                     miio_msg.get("method") == "internal.PONG":
                 ts_last_pong = time.time()
@@ -218,7 +217,7 @@ queue.put([
     {"method": "set_arming_time", "params": [states['arming_time']]},
     True
 ])
-if (!config['silent_start']):
+if (not config['silent_start']):
     # Set duration of alarm if triggered
     queue.put([
         "alarm/duration",
@@ -246,7 +245,10 @@ if (!config['silent_start']):
     ])
     queue.put([
         "sound/doorbell/volume",
-        {"method": "set_doorbell_volume", "params": [states['doorbell_volume']]},
+        {
+            "method": "set_doorbell_volume",
+            "params": [states['doorbell_volume']]
+        },
         True
     ])
     queue.put([
@@ -267,7 +269,10 @@ if (!config['silent_start']):
 # Set intensity + color
 queue.put([
     "rgb",
-    {"method": "set_rgb", "params": [int("54" + states['light_rgb'], 16)]},
+    {
+        "method": "set_rgb",
+        "params": [(states['brightness'] << 24) + states['light_rgb']]
+    },
     False
 ])
 
