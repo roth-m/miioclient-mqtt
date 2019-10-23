@@ -126,7 +126,7 @@ def miio_msg_params(topic, params):
         if type(value) is not dict:
             if key == "rgb":
                 states['brightness'], states['light_rgb'] = \
-                        divmod(value, 0x1000000)
+                    divmod(value, 0x1000000)
                 states['light_rgb'] = \
                     states['light_rgb'] ^ states['brightness']
                 logging.debug(
