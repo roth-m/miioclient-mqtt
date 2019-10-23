@@ -125,13 +125,10 @@ def miio_msg_params(topic, params):
     for key, value in params.items():
         if type(value) is not dict:
             if key == "rgb":
-                # response seem to be increased by 1,
-                # unless brightness set to 0
                 states['brightness'], states['light_rgb'] = \
-                        divmod(value-1, 0x1000000)
-                if states['brightness'] == 0:
-                    states['brightness'], states['light_rgb'] = \
-                            divmod(value, 0x1000000)
+                        divmod(value, 0x1000000)
+                states['light_rgb'] = \
+                    states['light_rgb'] ^ states['brightness']
                 logging.debug(
                     "Publish on " + mqtt_prefix + topic + key + "/state" +
                     " value:" + format(states['light_rgb'], 'x')
