@@ -46,9 +46,9 @@ def miio_msg_encode(data):
         msg = data
     else:
         if miio_id != 12345:
-            miio_id = miio_id+1
+            miio_id = miio_id + 1
         else:
-            miio_id = miio_id+2
+            miio_id = miio_id + 2
         if miio_id > 999999999:
             miio_id = 1
         msg = {"id": miio_id}
@@ -77,7 +77,7 @@ def handle_miio_reply(topic, miio_msgs, state_update):
             result = miio_msg.get("result")[0].upper()
             logging.debug("Publish on " + mqtt_prefix + topic + "/state" +
                           " result:" + str(result))
-            client.publish(mqtt_prefix+topic+"/state", result)    # publish
+            client.publish(mqtt_prefix + topic + "/state", result)    # publish
             if miio_msg.get("method") and \
                     miio_msg.get("method") == "internal.PONG":
                 ts_last_pong = time.time()
@@ -136,7 +136,7 @@ def miio_msg_params(topic, params):
                     str(value).upper()
                 )
         else:
-            miio_msg_params(topic+key+"/", value)
+            miio_msg_params(topic + key + "/", value)
 
 
 def miio_msg_event(topic, event, params):
@@ -148,7 +148,7 @@ def miio_msg_event(topic, event, params):
     elif value == "no_motion":
         value = "off"
     elif value == "alarm":
-        topic = value+"/"
+        topic = value + "/"
         value = params[0]
         if value == "all_off":
             value = "off"
@@ -156,9 +156,11 @@ def miio_msg_event(topic, event, params):
         value = "closed"
     value = value.upper()
     if len(params) > 0:
-        client.publish(mqtt_prefix+topic+"params", str(params))
-    logging.debug("Publish on "+mqtt_prefix+topic+"state"+" value:"+str(value))
-    client.publish(mqtt_prefix+topic+"state", str(value))
+        client.publish(mqtt_prefix + topic + "params", str(params))
+    logging.debug(
+        "Publish on " + mqtt_prefix + topic + "state"+" value:" + str(value)
+    )
+    client.publish(mqtt_prefix + topic + "state", str(value))
 
 
 def handle_miio_msg(miio_msg):
@@ -235,7 +237,7 @@ queue.put([
 # Set intensity + color
 queue.put([
     "rgb",
-    {"method": "set_rgb", "params": [int("54"+init_light_rgb, 16)]},
+    {"method": "set_rgb", "params": [int("54" + init_light_rgb, 16)]},
     False
 ])
 
@@ -369,27 +371,27 @@ client.connect(mqtt_broker)    # connect
 client.loop_start()
 
 # Subscribe to default MQTT topics for the gateway
-client.subscribe(mqtt_prefix+"heartbeat")
-client.subscribe(mqtt_prefix+"alarm")
-client.subscribe(mqtt_prefix+"alarm/time_to_activate")
-client.subscribe(mqtt_prefix+"alarm/duration")
-client.subscribe(mqtt_prefix+"light")
-client.subscribe(mqtt_prefix+"brightness")
-client.subscribe(mqtt_prefix+"rgb")
-client.subscribe(mqtt_prefix+"sound")
-client.subscribe(mqtt_prefix+"sound/sound")
-client.subscribe(mqtt_prefix+"sound/volume")
-client.subscribe(mqtt_prefix+"sound/alarming/volume")
-client.subscribe(mqtt_prefix+"sound/alarming/sound")
-client.subscribe(mqtt_prefix+"sound/doorbell/volume")
-client.subscribe(mqtt_prefix+"sound/doorbell/sound")
+client.subscribe(mqtt_prefix + "heartbeat")
+client.subscribe(mqtt_prefix + "alarm")
+client.subscribe(mqtt_prefix + "alarm/time_to_activate")
+client.subscribe(mqtt_prefix + "alarm/duration")
+client.subscribe(mqtt_prefix + "light")
+client.subscribe(mqtt_prefix + "brightness")
+client.subscribe(mqtt_prefix + "rgb")
+client.subscribe(mqtt_prefix + "sound")
+client.subscribe(mqtt_prefix + "sound/sound")
+client.subscribe(mqtt_prefix + "sound/volume")
+client.subscribe(mqtt_prefix + "sound/alarming/volume")
+client.subscribe(mqtt_prefix + "sound/alarming/sound")
+client.subscribe(mqtt_prefix + "sound/doorbell/volume")
+client.subscribe(mqtt_prefix + "sound/doorbell/sound")
 
 while True:
     while not queue.empty():
         # print("Something in the queue")
         # req : topic , miio_msg
         req = queue.get()
-        logging.debug("Sending: "+str(miio_msg_encode(req[1])))
+        logging.debug("Sending: " + str(miio_msg_encode(req[1])))
         UDPClientSocket.sendto(
             miio_msg_encode(req[1]),
             (miio_broker, miio_port)
@@ -420,7 +422,7 @@ while True:
     if (time.time()-ts_last_pong) > 300:
         logging.debug("Publish on " + mqtt_prefix +
                       "internal/state result: OFFLINE")
-        client.publish(mqtt_prefix+"internal/state", "OFFLINE")
+        client.publish(mqtt_prefix + "internal/state", "OFFLINE")
 
 # disconnect
 client.disconnect()
