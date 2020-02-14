@@ -1,0 +1,24 @@
+mqtt:
+    username:
+    password:
+    prefix: "/mihome/"                # With a leading /
+    broker: "127.0.0.1"
+
+miio:
+    broker: "192.168.0.12"
+    port: 54321
+
+# this will skip init of sound and volume
+silent_start: false
+
+initial_states:
+    sound: 3
+    sound_volume: 5
+    doorbell_sound: 11
+    doorbell_volume: 5
+    alarm_sound: 2
+    alarm_volume: 5
+    arming_time: 30
+    alarm_duration: 1200
+    brightness: 10
+    light_rgb: ff00ff
