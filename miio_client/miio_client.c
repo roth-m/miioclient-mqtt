@@ -461,6 +461,7 @@ void process_local_client(size_t client_socket_idx) {
       local_client_socket_internal = client_socket;
       local_client_sockets[client_socket_idx] = -1;
       local_client_sockets_in_use--;
+      cJSON_Delete(payload_json);
       return;
     }
   }
@@ -471,17 +472,20 @@ void process_local_client(size_t client_socket_idx) {
       if (read_internal_info(payload_json) != 0) {
         fprintf(stderr, "Error reading _internal message!\n");
       }
+      cJSON_Delete(payload_json);
       return;
     }
   }
   cJSON *id = cJSON_GetObjectItemCaseSensitive(payload_json, "id");
   if (!cJSON_IsNumber(id)) {
     fprintf(stderr, "Invalid payload id.\n");
+    cJSON_Delete(payload_json);
     return;
   }
   int payload_id = id->valueint;
   if (payload_id < 0) {
     fprintf(stderr, "Payload id is negative.\n");
+    cJSON_Delete(payload_json);
     return;
   }
   
@@ -492,6 +496,7 @@ void process_local_client(size_t client_socket_idx) {
       if (read_local(client_socket, payload_json) != 0) {
         fprintf(stderr, "Error reading local message!\n");
       }
+      cJSON_Delete(payload_json);
       return;
     }
   }
