@@ -1,7 +1,7 @@
 This is a MQTT client which will connect to the modified miio_client on the gateway.
 
 Requirements:
-	pip install paho-mqtt
+`pip3 install paho-mqtt`
 	
 
 Before running, you need to modify the Python script.
@@ -17,10 +17,9 @@ MIIO_GATEWAY_IP: the IP of your Xiaomi gateway
 
 
 Once done, just launch:
-
-	python3 miioclient_mqtt.py
+`./miioclient_mqtt.py /path/to/config.yml`
 
 The script will output messages received from the gateway AND messages published on MQTT.
 
-To run in "production", just launch: python3 miioclient_mqtt.py >/dev/null 2>&1
+To run in "production", just launch: `./miioclient_mqtt.py /path/to/config.yml` >/dev/null 2>&1
 
