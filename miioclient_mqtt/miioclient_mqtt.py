@@ -10,6 +10,7 @@ import time
 import socket
 import json
 import os
+import sys
 import yaml
 from multiprocessing import Queue
 import logging
@@ -17,8 +18,13 @@ import paho.mqtt.client as paho
 
 
 def read_config():
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    with open(script_dir + "/miioclient_mqtt.yaml") as file:
+    if len(sys.argv) < 2:
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        configfile = script_dir + "/miioclient_mqtt.yaml"
+    else:
+        configfile = sys.argv[1]
+
+    with open(configfile) as file:
         config = yaml.safe_load(file)
     return config
 
